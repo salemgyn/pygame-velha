@@ -8,6 +8,18 @@ import pygame,sys
 from pygame.locals import *
 
 class JogoVelha(object):
+
+	ULTIMO_INICIAR_PC = True # primeiro jogo sempre player joga primeiro
+
+	JOGO = [0,
+			[' '],[' '],[' '],
+			[' '],[' '],[' '],
+			[' '],[' '],[' '],]
+
+	PADROES_VENCE = [[7,8,9],[4,5,6],[1,2,3],
+					 [7,4,1],[8,5,2],[9,6,3],
+					 [7,5,3],[9,5,1]]
+
 	ESQUERDO = 1
 
 	BRANCO 		  = (255, 255, 255)
@@ -27,38 +39,41 @@ class JogoVelha(object):
 	ROXO 		  = (128,   0, 128)
 	OLIVA 		  = (128, 128,   0)
 
-	ESPACO_O_1 = ( 10,  10, 110, 110)
-	ESPACO_O_2 = (145,  10, 110, 110)
-	ESPACO_O_3 = (290,  10, 110, 110)
+	ESPESSURA = 5
 
-	ESPACO_O_4 = ( 10, 145, 110, 110)
-	ESPACO_O_5 = (145, 145, 110, 110)
-	ESPACO_O_6 = (290, 145, 110, 110)
+	ESPACO_O = [0,( 10, 290, 110, 110),
+				  (145, 290, 110, 110),
+				  (290, 290, 110, 110),
+				  ( 10, 145, 110, 110),
+				  (145, 145, 110, 110),
+				  (290, 145, 110, 110),
+				  ( 10,  10, 110, 110),
+				  (145,  10, 110, 110),
+				  (290,  10, 110, 110)]
 
-	ESPACO_O_7 = ( 10, 290, 110, 110)
-	ESPACO_O_8 = (145, 290, 110, 110)
-	ESPACO_O_9 = (290, 290, 110, 110)
+	ESPACO_X = [0,
+				[[( 10, 290),(110, 390)],[( 10, 390),(110, 290)]],
+				[[(145, 290),(245, 390)],[(145, 390),(245, 290)]],
+				[[(290, 290),(390, 390)],[(290, 390),(390, 290)]],
+				[[( 10, 145),(110, 245)],[( 10, 245),(110, 145)]],
+				[[(145, 145),(245, 245)],[(145, 245),(245, 145)]],
+				[[(290, 145),(390, 245)],[(290, 245),(390, 145)]],
+				[[( 10,  10),(110, 110)],[(110,  10),( 10, 110)]],
+				[[(145,  10),(245, 110)],[(145, 110),(245,  10)]],
+				[[(290,  10),(390, 110)],[(290, 110),(390,  10)]],
+				]
 
-	ESPACO_X_1_INI = ( 10,  10),(110, 110)
-	ESPACO_X_1_FIN = (110,  10),( 10, 110)
-	ESPACO_X_2_INI = (145,  10),(245, 110)
-	ESPACO_X_2_FIN = (145, 110),(245,  10)
-	ESPACO_X_3_INI = (290,  10),(390, 110)
-	ESPACO_X_3_FIN = (290, 110),(390,  10)
-
-	ESPACO_X_4_INI = ( 10, 145),(110, 245)
-	ESPACO_X_4_FIN = ( 10, 245),(110, 145)
-	ESPACO_X_5_INI = (145, 145),(245, 245)
-	ESPACO_X_5_FIN = (145, 245),(245, 145)
-	ESPACO_X_6_INI = (290, 145),(390, 245)
-	ESPACO_X_6_FIN = (290, 245),(390, 145)
-
-	ESPACO_X_7_INI = ( 10, 290),(110, 390)
-	ESPACO_X_7_FIN = ( 10, 390),(110, 290)
-	ESPACO_X_8_INI = (145, 290),(245, 390)
-	ESPACO_X_8_FIN = (145, 390),(245, 290)
-	ESPACO_X_9_INI = (290, 290),(390, 390)
-	ESPACO_X_9_FIN = (290, 390),(390, 290)
+	POSICOES = {
+				7:{'x':[  0, 125],'y':[  0, 125]},
+				8:{'x':[125, 275],'y':[  0, 125]},
+				9:{'x':[275, 420],'y':[  0, 125]},
+				4:{'x':[  0, 125],'y':[125, 275]},
+				5:{'x':[125, 275],'y':[125, 275]},
+				6:{'x':[275, 420],'y':[125, 275]},
+				1:{'x':[  0, 125],'y':[275, 420]},
+				2:{'x':[125, 275],'y':[275, 420]},
+				3:{'x':[275, 420],'y':[275, 420]}
+				}
 
 	pygame.init()
 	pygame.display.set_caption('Jogo da Velha com AI')
@@ -68,47 +83,133 @@ class JogoVelha(object):
 
 	BACKGROUND = BACKGROUND.convert()
 
-	ESPESSURA = 5
+	def verifica_vence(self,atual,desenha=False):
+		campeao = ''
+		padrao_vencedor = []
+		campeao = False
+		for pos in self.PADROES_VENCE:
+			if(atual[pos[0]]==atual[pos[1]]==atual[pos[2]]=='O'): 
+				campeao = 'O'
+				padrao_vencedor = pos
+			if(atual[pos[0]]==atual[pos[1]]==atual[pos[2]]=='X'): 
+				campeao = 'X'
+				padrao_vencedor = pos
+		if len(self.checa_livres(atual)) == 0: campeao = ' '
+		if desenha and campeao in ['O','X']:
+			self.desenha_linha_vencedor(padrao_vencedor)
+		return campeao
 
-	# CRIAÇÃO DAS LINHAS DE DIVISÃO (POPULAR #)
+	def reseta_jogo(self):
+		for i in range(1,len(self.JOGO)):
+			self.JOGO[i] = ' '
+
+	def checa_livres(self,atual):
+		livres = []
+		for i in range(1,len(atual)):
+			if atual[i] == ' ': livres.append(i)
+		return livres
+
+	def move_ai(self,atual,player):
+		oponente = 'O' if player == 'X' else 'X'
+		ganho = 0
+		perda = 0
+		if len(self.checa_livres(atual)) == 9: return 5
+		for pos in self.checa_livres(atual):
+			atual[pos] = player
+			if self.verifica_vence(atual) == player:
+				ganho = pos
+			atual[pos] = ' '
+		for pos in self.checa_livres(atual):
+			atual[pos] = oponente
+			if self.verifica_vence(atual) == oponente:
+				perda = pos
+			atual[pos] = ' '
+		if ganho > 0: return ganho
+		if perda > 0: return perda
+		move = self.negamax(atual,player,9)
+		return move
+
+	def negamax(self,atual,player,terminal):
+		oponente = 'O' if player=='X' else 'X'
+		melhor_valor = -float('inf') # infinito negativo para que qualquer valor seja maior que ele
+		melhor_posicao = 0
+		if terminal > 0:
+			if self.verifica_vence(atual) == player: return 1
+			elif self.verifica_vence(atual) == oponente: return -1
+			elif self.verifica_vence(atual) == ' ': return 0
+		else: return 0
+		for pos in self.checa_livres(atual):
+			atual[pos] = player
+			valor = -self.negamax(atual,oponente,terminal-1)
+			if valor > melhor_valor:
+				melhor_valor = valor
+				melhor_posicao = pos
+			atual[pos] = ' '
+		return melhor_posicao
+
 	def cria_linhas(self):
 		pygame.draw.line(self.BACKGROUND, self.PRETO, (  0, 125), (420, 125), self.ESPESSURA)
 		pygame.draw.line(self.BACKGROUND, self.PRETO, (  0, 275), (420, 275), self.ESPESSURA)
 		pygame.draw.line(self.BACKGROUND, self.PRETO, (125,   0), (125, 420), self.ESPESSURA)
 		pygame.draw.line(self.BACKGROUND, self.PRETO, (275,   0), (275, 420), self.ESPESSURA)
 
-	# PARA O
-	# pygame.draw.ellipse(BACKGROUND, AZUL, ESPACO_O_1, ESPESSURA)
-
-	# PARA X
-	# pygame.draw.line(BACKGROUND, VERDE, ESPACO_X_1_INI[0], ESPACO_X_1_INI[1], ESPESSURA)
-	# pygame.draw.line(BACKGROUND, VERDE, ESPACO_X_1_FIN[0], ESPACO_X_1_FIN[1], ESPESSURA)
-
-	def marque_em(self,mouse_pos):
+	def posicao_clique(self,mouse_pos):
 		x,y = mouse_pos
+		clique = 0
 
-		if x <= 125 and y <= 125:
-			pygame.draw.line(self.BACKGROUND, self.VERDE, self.ESPACO_X_1_INI[0], self.ESPACO_X_1_INI[1], self.ESPESSURA)
-			pygame.draw.line(self.BACKGROUND, self.VERDE, self.ESPACO_X_1_FIN[0], self.ESPACO_X_1_FIN[1], self.ESPESSURA)
-		elif x <= 275 and y <= 125:
-			pygame.draw.line(self.BACKGROUND, self.VERDE, self.ESPACO_X_2_INI[0], self.ESPACO_X_2_INI[1], self.ESPESSURA)
-			pygame.draw.line(self.BACKGROUND, self.VERDE, self.ESPACO_X_2_FIN[0], self.ESPACO_X_2_FIN[1], self.ESPESSURA)
-		elif x > 275 and y <= 125:
-			pygame.draw.line(self.BACKGROUND, self.VERDE, self.ESPACO_X_3_INI[0], self.ESPACO_X_3_INI[1], self.ESPESSURA)
-			pygame.draw.line(self.BACKGROUND, self.VERDE, self.ESPACO_X_3_FIN[0], self.ESPACO_X_3_FIN[1], self.ESPESSURA)
+		for i in range(1,len(self.POSICOES)+1):
+			if self.POSICOES[i]['x'][0] <= x <= self.POSICOES[i]['x'][1] and self.POSICOES[i]['y'][0] <= y <= self.POSICOES[i]['y'][1]:
+				clique = i
+		return clique
+
+	def marca_o_em(self,pos):
+		pygame.draw.ellipse(self.BACKGROUND, self.AZUL, self.ESPACO_O[pos], self.ESPESSURA)
+		self.JOGO[pos] = 'O'
+
+	def marca_x_em(self,pos):
+		pygame.draw.line(self.BACKGROUND, self.VERDE, self.ESPACO_X[pos][0][0], self.ESPACO_X[pos][0][1], self.ESPESSURA)
+		pygame.draw.line(self.BACKGROUND, self.VERDE, self.ESPACO_X[pos][1][0], self.ESPACO_X[pos][1][1], self.ESPESSURA)
+		self.JOGO[pos] = 'X'
+
+	def desenha_linha_vencedor(self,padrao):
+		x_ini = (self.POSICOES[padrao[0]]['x'][0]+self.POSICOES[padrao[0]]['x'][1])/2
+		y_ini = (self.POSICOES[padrao[0]]['y'][0]+self.POSICOES[padrao[0]]['y'][1])/2
+		x_fin = (self.POSICOES[padrao[2]]['x'][0]+self.POSICOES[padrao[2]]['x'][1])/2
+		y_fin = (self.POSICOES[padrao[2]]['y'][0]+self.POSICOES[padrao[2]]['y'][1])/2
+		desenho = (x_ini,y_ini),(x_fin,y_fin)
+		pygame.draw.line(self.BACKGROUND, self.VERMELHO, desenho[0], desenho[1], self.ESPESSURA)
 
 	def main(self):
-		self.BACKGROUND.fill(self.BRANCO)
-		self.cria_linhas()
 		while True:
-			for event in pygame.event.get():
-				if event.type == QUIT:
-					pygame.quit()
-					sys.exit()
-				elif event.type == pygame.MOUSEBUTTONUP and event.button == self.ESQUERDO:
-					self.marque_em(event.pos)
+			self.BACKGROUND.fill(self.BRANCO)
+			self.cria_linhas()
+			player_joga = False
+			if self.ULTIMO_INICIAR_PC:
+				player_joga = True
+			self.ULTIMO_INICIAR_PC = not self.ULTIMO_INICIAR_PC
+			while not self.verifica_vence(self.JOGO):
+				if player_joga:
+					while True:
+						escolheu = False
+						for event in pygame.event.get():
+							if event.type == QUIT:
+								pygame.quit()
+								sys.exit()
+							elif event.type == pygame.MOUSEBUTTONUP and event.button == self.ESQUERDO:
+								self.marca_o_em(self.posicao_clique(event.pos))
+								escolheu = True
+								break
+						if escolheu: break
+					player_joga = False
+				else:
+					self.marca_x_em(self.move_ai(self.JOGO,'X'))
+					player_joga = True
+				self.TELA.blit(self.BACKGROUND,(0,0))
+				pygame.display.update()
+			vencedor = self.verifica_vence(self.JOGO,True)
 			self.TELA.blit(self.BACKGROUND,(0,0))
 			pygame.display.update()
-
+			print vencedor
+			self.reseta_jogo()
 jogoVelha = JogoVelha()
 jogoVelha.main()
